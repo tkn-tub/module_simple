@@ -119,5 +119,5 @@ class SimpleModule(wishful_module.AgentModule):
     @wishful_module.on_function(upis.radio.clean_per_flow_tx_power_table)
     def clean_per_flow_tx_power_table(self, iface):
         self.log.debug("clean per flow tx power table".format())
-        raise exceptions.UPIFunctionExecutionFailedException(
+        raise exceptions.FunctionExecutionFailedException(
             func_name='radio.clean_per_flow_tx_power_table', err_msg='wrong')
