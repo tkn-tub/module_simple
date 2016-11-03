@@ -3,8 +3,8 @@ import random
 import time
 import queue
 import wishful_upis as upis
-from wishful_agent.core import wishful_module
-from wishful_agent.core import exceptions
+from uniflex.core import modules
+from uniflex.core import exceptions
 
 __author__ = "Piotr Gawlowicz"
 __copyright__ = "Copyright (c) 2015, Technische Universität Berlin"
@@ -12,8 +12,8 @@ __version__ = "0.1.0"
 __email__ = "{gawlowicz}@tkn.tu-berlin.de"
 
 
-@wishful_module.build_module
-class SimpleModule(wishful_module.AgentModule):
+@modules.build_module
+class SimpleModule(modules.AgentModule):
     def __init__(self):
         super(SimpleModule, self).__init__()
         self.log = logging.getLogger('SimpleModule')
@@ -26,26 +26,26 @@ class SimpleModule(wishful_module.AgentModule):
         self._packetLossEventRunning = False
         self._spectralScanServiceRunning = False
 
-    @wishful_module.on_start()
+    @modules.on_start()
     def myFunc_1(self):
         self.log.info("This function is executed on agent start".format())
 
-    @wishful_module.on_exit()
+    @modules.on_exit()
     def myFunc_2(self):
         self.log.info("This function is executed on agent exit".format())
 
-    @wishful_module.on_connected()
+    @modules.on_connected()
     def myFunc_3(self):
         self.log.info("This function is executed on connection"
                       " to global controller".format())
 
-    @wishful_module.on_disconnected()
+    @modules.on_disconnected()
     def myFunc_4(self):
         self.log.info(
             "This function is executed after connection with global"
             " controller was lost".format())
 
-    @wishful_module.on_first_call_to_module()
+    @modules.on_first_call_to_module()
     def myFunc_5(self):
         self.log.info(
             "This function is executed before first UPI"
@@ -57,36 +57,36 @@ class SimpleModule(wishful_module.AgentModule):
     def after_set_channel(self):
         self.log.info("This function is executed after set_channel".format())
 
-    @wishful_module.before_call(before_set_channel)
-    @wishful_module.after_call(after_set_channel)
-    @wishful_module.bind_function(upis.wifi.radio.set_channel)
+    @modules.before_call(before_set_channel)
+    @modules.after_call(after_set_channel)
+    @modules.bind_function(upis.wifi.radio.set_channel)
     def set_channel(self, channel, iface):
         self.log.info("Simple Module sets channel: {} on device: {} and iface: {}".format(
             channel, self.device, iface))
         self.channel = channel
         return ["SET_CHANNEL_OK", channel, 0]
 
-    @wishful_module.bind_function(upis.wifi.radio.get_channel)
+    @modules.bind_function(upis.wifi.radio.get_channel)
     def get_channel(self, iface):
         self.log.debug(
             "Simple Module gets channel of device: {} and iface: {}"
             .format(self.device, iface))
         return self.channel
 
-    @wishful_module.bind_function(upis.radio.set_tx_power)
+    @modules.bind_function(upis.radio.set_tx_power)
     def set_tx_power(self, power, iface):
         self.log.debug("Simple Module sets power: {} on device: {} and iface: {}".format(
             power, self.device, iface))
         self.power = power
         return {"SET_TX_POWER_OK_value": power}
 
-    @wishful_module.bind_function(upis.radio.get_tx_power)
+    @modules.bind_function(upis.radio.get_tx_power)
     def get_tx_power(self, iface):
         self.log.debug(
             "Simple Module gets TX power on device: {} and iface: {}".format(self.device, iface))
         return self.power
 
-    @wishful_module.event_enable(upis.radio.PacketLossEvent)
+    @modules.event_enable(upis.radio.PacketLossEvent)
     def packet_loss_event_enable(self):
         self._packetLossEventRunning = True
 
@@ -97,11 +97,11 @@ class SimpleModule(wishful_module.AgentModule):
             self.send_event(event)
             time.sleep(random.uniform(0, 10))
 
-    @wishful_module.event_disable(upis.radio.PacketLossEvent)
+    @modules.event_disable(upis.radio.PacketLossEvent)
     def packet_loss_event_disable(self):
         self._packetLossEventRunning = False
 
-    @wishful_module.service_start(upis.radio.SpectralScanService)
+    @modules.service_start(upis.radio.SpectralScanService)
     def spectral_scan_service_start(self):
         self._spectralScanServiceRunning = True
 
@@ -112,11 +112,11 @@ class SimpleModule(wishful_module.AgentModule):
             self.send_event(sample)
             time.sleep(1)
 
-    @wishful_module.service_stop(upis.radio.SpectralScanService)
+    @modules.service_stop(upis.radio.SpectralScanService)
     def spectral_scan_service_stop(self):
         self._spectralScanServiceRunning = False
 
-    @wishful_module.on_function(upis.radio.clean_per_flow_tx_power_table)
+    @modules.on_function(upis.radio.clean_per_flow_tx_power_table)
     def clean_per_flow_tx_power_table(self, iface):
         self.log.debug("clean per flow tx power table".format())
         raise exceptions.FunctionExecutionFailedException(

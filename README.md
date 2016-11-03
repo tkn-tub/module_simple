@@ -1,9 +1,7 @@
-WiSHFUL Simple Agent Module
+UniFlex Simple Agent Module
 ============================
 
-This is a prototypic implementation of a wireless agent providing the Unified
-Programming Interfaces (UPIs) of the Wishful software platform for
-radio and network control.
+Example implementation of Simple Device Module.
 
 ## Acknowledgement
 

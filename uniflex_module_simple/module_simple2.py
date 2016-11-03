@@ -1,9 +1,8 @@
 import logging
 import random
 import wishful_upis as upis
-from wishful_agent.core import wishful_module
+from uniflex.core import modules
 from .module_simple import SimpleModule
-from random import randint
 
 __author__ = "Piotr Gawlowicz"
 __copyright__ = "Copyright (c) 2015, Technische Universität Berlin"
@@ -11,7 +10,7 @@ __version__ = "0.1.0"
 __email__ = "{gawlowicz}@tkn.tu-berlin.de"
 
 
-@wishful_module.build_module
+@modules.build_module
 class SimpleModule2(SimpleModule):
     def __init__(self):
         super(SimpleModule2, self).__init__()
@@ -19,30 +18,30 @@ class SimpleModule2(SimpleModule):
         self.channel = 1
         self.power = 1
 
-    @wishful_module.on_function(upis.radio.set_tx_power)
+    @modules.on_function(upis.radio.set_tx_power)
     def set_tx_power(self, power, iface):
         self.log.debug("SimpleModule2 sets power: {} on device: {} and iface: {}"
                        .format(power, self.device, iface))
         self.power = power
         return {"SET_TX_POWER_OK_value": power}
 
-    @wishful_module.on_function(upis.radio.get_tx_power)
+    @modules.on_function(upis.radio.get_tx_power)
     def get_tx_power(self, iface):
         self.log.debug("SimpleModule2 gets TX power on device: {}"
                        .format(self.device))
         return self.power
 
-    @wishful_module.on_function(upis.radio.get_noise)
+    @modules.on_function(upis.radio.get_noise)
     def get_noise(self):
         self.log.debug("Get Noise".format())
         return random.randint(-120, -30)
 
-    @wishful_module.on_function(upis.radio.get_airtime_utilization)
+    @modules.on_function(upis.radio.get_airtime_utilization)
     def get_airtime_utilization(self):
         self.log.debug("Get Airtime Utilization".format())
         return None
 
-    @wishful_module.on_function(upis.radio.set_mac_access_parameters)
+    @modules.on_function(upis.radio.set_mac_access_parameters)
     def setEdcaParameters(self, queueId, queueParams):
         self.log.debug("SimpleModule2 sets EDCA parameters "
                        "for queue: {} on device: {}"
