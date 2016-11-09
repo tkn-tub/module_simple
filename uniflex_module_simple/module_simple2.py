@@ -10,7 +10,6 @@ __version__ = "0.1.0"
 __email__ = "{gawlowicz}@tkn.tu-berlin.de"
 
 
-@modules.build_module
 class SimpleModule2(SimpleModule):
     def __init__(self):
         super(SimpleModule2, self).__init__()
@@ -53,4 +52,3 @@ class SimpleModule2(SimpleModule):
         print("CwMax: {}".format(queueParams.getCwMax()))
         print("TxOp: {}".format(queueParams.getTxOp()))
         return 0
-

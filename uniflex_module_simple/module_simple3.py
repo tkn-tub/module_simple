@@ -9,8 +9,7 @@ __version__ = "0.1.0"
 __email__ = "{zubow}@tkn.tu-berlin.de"
 
 
-@modules.build_module
-class SimpleModule3(modules.AgentModule):
+class SimpleModule3(modules.DeviceModule):
     def __init__(self):
         super(SimpleModule3, self).__init__()
         self.log = logging.getLogger('SimpleModule3')
