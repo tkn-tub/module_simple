@@ -1,7 +1,7 @@
+import time
 import logging
 import random
-import time
-import queue
+import threading
 
 from sbi.wifi.net_device import WiFiNetDevice
 from sbi.wifi.events import PacketLossEvent, SpectralScanSampleEvent
@@ -23,7 +23,6 @@ class SimpleModule(modules.DeviceModule, WiFiNetDevice):
         self.power = 1
 
         self.stopRssi = True
-        self.rssiSampleQueue = queue.Queue()
 
         self._packetLossEventRunning = False
         self._spectralScanServiceRunning = False
@@ -99,17 +98,27 @@ class SimpleModule(modules.DeviceModule, WiFiNetDevice):
     def packet_loss_event_disable(self):
         self._packetLossEventRunning = False
 
-    def spectral_scan_service_start(self):
-        self._spectralScanServiceRunning = True
-
+    def _spectral_scan_thread(self):
         while self._spectralScanServiceRunning:
-            self.log.debug("Spectral scan sample")
+            self.log.info("Spectral scan sample")
             sample = SpectralScanSampleEvent(
                 sample=random.uniform(0, 64))
             self.send_event(sample)
             time.sleep(1)
 
-    def spectral_scan_service_stop(self):
+    def spectral_scan_start(self):
+        print("spectral_scan_start")
+        if self._spectralScanServiceRunning:
+            return True
+
+        self._spectralScanServiceRunning = True
+
+        d = threading.Thread(target=self._spectral_scan_thread)
+        d.setDaemon(True)
+        d.start()
+        return True
+
+    def spectral_scan_stop(self):
         self._spectralScanServiceRunning = False
 
     def clean_per_flow_tx_power_table(self, iface):
