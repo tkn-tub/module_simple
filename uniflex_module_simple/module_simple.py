@@ -1,18 +1,48 @@
 import time
 import logging
 import random
-import threading
 
 from sbi.wifi.net_device import WiFiNetDevice
 from sbi.wifi.events import PacketLossEvent, SpectralScanSampleEvent
 
 from uniflex.core import modules
 from uniflex.core import exceptions
+from uniflex.core.common import UniFlexThread
 
 __author__ = "Piotr Gawlowicz"
 __copyright__ = "Copyright (c) 2015, Technische Universität Berlin"
 __version__ = "0.1.0"
 __email__ = "{gawlowicz}@tkn.tu-berlin.de"
+
+
+class SpectralScanner(UniFlexThread):
+    """docstring for SpectralScanner"""
+
+    def __init__(self, module):
+        super().__init__(module)
+
+    def task(self):
+        while not self.is_stopped():
+            self.module.log.info("Spectral scan sample")
+            sample = SpectralScanSampleEvent(
+                sample=random.uniform(0, 64))
+            self.module.send_event(sample)
+            time.sleep(1)
+
+
+class PacketLossMonitor(UniFlexThread):
+    """docstring for SpectralScanner"""
+
+    def __init__(self, module):
+        super().__init__(module)
+
+    def task(self):
+        while not self.is_stopped():
+            self.module.log.debug("Packet Lost")
+            event = PacketLossEvent()
+            # yeld or send Event to controller
+            self.module.send_event(event)
+            time.sleep(random.uniform(0, 10))
 
 
 class SimpleModule(modules.DeviceModule, WiFiNetDevice):
@@ -24,8 +54,8 @@ class SimpleModule(modules.DeviceModule, WiFiNetDevice):
 
         self.stopRssi = True
 
-        self._packetLossEventRunning = False
-        self._spectralScanServiceRunning = False
+        self._packetLossMonitor = PacketLossMonitor(self)
+        self._spectralScanner = SpectralScanner(self)
 
     @modules.on_start()
     def _myFunc_1(self):
@@ -85,57 +115,37 @@ class SimpleModule(modules.DeviceModule, WiFiNetDevice):
             .format(self.device, iface))
         return self.power
 
-    def _packet_loss_monitor_thread(self):
-        while self._packetLossEventRunning:
-            self.log.debug("Packet Lost")
-            event = PacketLossEvent()
-            # yeld or send Event to controller
-            self.send_event(event)
-            time.sleep(random.uniform(0, 10))
-
     def packet_loss_monitor_start(self):
-        if self._packetLossEventRunning:
+        if self._packetLossMonitor.is_running():
             return True
 
-        self._packetLossEventRunning = True
-
-        d = threading.Thread(target=self._packet_loss_monitor_thread)
-        d.setDaemon(True)
-        d.start()
-        # TODO: UniFlexTask that returns object with start and stop
+        self.log.info("Start Packet Loss Monitor")
+        self._packetLossMonitor.start()
         return True
 
     def packet_loss_monitor_stop(self):
-        self._packetLossEventRunning = False
+        self.log.info("Stop Packet Loss Monitor")
+        self._packetLossMonitor.stop()
+        return True
 
     def is_packet_loss_monitor_running(self):
-        return self._packetLossEventRunning
-
-    def _spectral_scan_thread(self):
-        while self._spectralScanServiceRunning:
-            self.log.info("Spectral scan sample")
-            sample = SpectralScanSampleEvent(
-                sample=random.uniform(0, 64))
-            self.send_event(sample)
-            time.sleep(1)
+        return self._packetLossMonitor.is_running()
 
     def spectral_scan_start(self):
-        if self._spectralScanServiceRunning:
+        if self._spectralScanner.is_running():
             return True
 
-        self._spectralScanServiceRunning = True
-
-        d = threading.Thread(target=self._spectral_scan_thread)
-        d.setDaemon(True)
-        d.start()
-        # TODO: UniFlexTask that returns object with start and stop
+        self.log.info("Start spectral scanner")
+        self._spectralScanner.start()
         return True
 
     def spectral_scan_stop(self):
-        self._spectralScanServiceRunning = False
+        self.log.info("Stop spectral scanner")
+        self._spectralScanner.stop()
+        return True
 
     def is_spectral_scan_running(self):
-        return self._spectralScanServiceRunning
+        return self._spectralScanner.is_running()
 
     def clean_per_flow_tx_power_table(self, iface):
         self.log.debug("clean per flow tx power table".format())
