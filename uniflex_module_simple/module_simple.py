@@ -108,6 +108,9 @@ class SimpleModule(modules.DeviceModule, WiFiNetDevice):
     def packet_loss_monitor_stop(self):
         self._packetLossEventRunning = False
 
+    def is_packet_loss_monitor_running(self):
+        return self._packetLossEventRunning
+
     def _spectral_scan_thread(self):
         while self._spectralScanServiceRunning:
             self.log.info("Spectral scan sample")
@@ -130,6 +133,9 @@ class SimpleModule(modules.DeviceModule, WiFiNetDevice):
 
     def spectral_scan_stop(self):
         self._spectralScanServiceRunning = False
+
+    def is_spectral_scan_running(self):
+        return self._spectralScanServiceRunning
 
     def clean_per_flow_tx_power_table(self, iface):
         self.log.debug("clean per flow tx power table".format())
