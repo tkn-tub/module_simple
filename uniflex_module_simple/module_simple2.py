@@ -1,7 +1,6 @@
 import logging
 import random
-import wishful_upis as upis
-from uniflex.core import modules
+
 from .module_simple import SimpleModule
 
 __author__ = "Piotr Gawlowicz"
@@ -17,31 +16,27 @@ class SimpleModule2(SimpleModule):
         self.channel = 1
         self.power = 1
 
-    @modules.on_function(upis.radio.set_tx_power)
     def set_tx_power(self, power, iface):
-        self.log.debug("SimpleModule2 sets power: {} on device: {} and iface: {}"
+        self.log.debug(("SimpleModule2 sets power: {}" +
+                       "on device: {} and iface: {}")
                        .format(power, self.device, iface))
         self.power = power
         return {"SET_TX_POWER_OK_value": power}
 
-    @modules.on_function(upis.radio.get_tx_power)
     def get_tx_power(self, iface):
         self.log.debug("SimpleModule2 gets TX power on device: {}"
                        .format(self.device))
         return self.power
 
-    @modules.on_function(upis.radio.get_noise)
     def get_noise(self):
         self.log.debug("Get Noise".format())
         return random.randint(-120, -30)
 
-    @modules.on_function(upis.radio.get_airtime_utilization)
     def get_airtime_utilization(self):
         self.log.debug("Get Airtime Utilization".format())
         return None
 
-    @modules.on_function(upis.radio.set_mac_access_parameters)
-    def setEdcaParameters(self, queueId, queueParams):
+    def set_mac_access_parameters(self, queueId, queueParams):
         self.log.debug("SimpleModule2 sets EDCA parameters "
                        "for queue: {} on device: {}"
                        .format(queueId, self.device))

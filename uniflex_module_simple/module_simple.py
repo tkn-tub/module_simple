@@ -28,38 +28,38 @@ class SimpleModule(modules.DeviceModule, WiFiNetDevice):
         self._spectralScanServiceRunning = False
 
     @modules.on_start()
-    def myFunc_1(self):
+    def _myFunc_1(self):
         self.log.info("This function is executed on agent start".format())
 
     @modules.on_exit()
-    def myFunc_2(self):
+    def _myFunc_2(self):
         self.log.info("This function is executed on agent exit".format())
 
     @modules.on_connected()
-    def myFunc_3(self):
+    def _myFunc_3(self):
         self.log.info("This function is executed on connection"
                       " to global controller".format())
 
     @modules.on_disconnected()
-    def myFunc_4(self):
+    def _myFunc_4(self):
         self.log.info(
             "This function is executed after connection with global"
             " controller was lost".format())
 
     @modules.on_first_call_to_module()
-    def myFunc_5(self):
+    def _myFunc_5(self):
         self.log.info(
             "This function is executed before first UPI"
             " call to module".format())
 
-    def before_set_channel(self):
+    def _before_set_channel(self):
         self.log.info("This function is executed before set_channel".format())
 
-    def after_set_channel(self):
+    def _after_set_channel(self):
         self.log.info("This function is executed after set_channel".format())
 
-    @modules.before_call(before_set_channel)
-    @modules.after_call(after_set_channel)
+    @modules.before_call(_before_set_channel)
+    @modules.after_call(_after_set_channel)
     def set_channel(self, channel, iface):
         self.log.info(("Simple Module sets channel: {} " +
                        "on device: {} and iface: {}")
@@ -85,9 +85,7 @@ class SimpleModule(modules.DeviceModule, WiFiNetDevice):
             .format(self.device, iface))
         return self.power
 
-    def packet_loss_event_enable(self):
-        self._packetLossEventRunning = True
-
+    def _packet_loss_monitor_thread(self):
         while self._packetLossEventRunning:
             self.log.debug("Packet Lost")
             event = PacketLossEvent()
@@ -95,7 +93,19 @@ class SimpleModule(modules.DeviceModule, WiFiNetDevice):
             self.send_event(event)
             time.sleep(random.uniform(0, 10))
 
-    def packet_loss_event_disable(self):
+    def packet_loss_monitor_start(self):
+        if self._packetLossEventRunning:
+            return True
+
+        self._packetLossEventRunning = True
+
+        d = threading.Thread(target=self._packet_loss_monitor_thread)
+        d.setDaemon(True)
+        d.start()
+        # TODO: UniFlexTask that returns object with start and stop
+        return True
+
+    def packet_loss_monitor_stop(self):
         self._packetLossEventRunning = False
 
     def _spectral_scan_thread(self):
@@ -107,7 +117,6 @@ class SimpleModule(modules.DeviceModule, WiFiNetDevice):
             time.sleep(1)
 
     def spectral_scan_start(self):
-        print("spectral_scan_start")
         if self._spectralScanServiceRunning:
             return True
 
@@ -116,6 +125,7 @@ class SimpleModule(modules.DeviceModule, WiFiNetDevice):
         d = threading.Thread(target=self._spectral_scan_thread)
         d.setDaemon(True)
         d.start()
+        # TODO: UniFlexTask that returns object with start and stop
         return True
 
     def spectral_scan_stop(self):
