@@ -47,3 +47,7 @@ class SimpleModule2(SimpleModule):
         print("CwMax: {}".format(queueParams.getCwMax()))
         print("TxOp: {}".format(queueParams.getTxOp()))
         return 0
+
+    def set_rate_control(self, rateParams):
+        self.log.info("SimpleModule2 set rate control parameters: {}".format(rateParams))
+        return 0
