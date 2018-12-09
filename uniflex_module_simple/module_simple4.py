@@ -173,6 +173,7 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
         return self._packetLossMonitor.is_running()
 
     def get_interfaces(self):
+        self.log.info("read interfaces")
         return ['wlan0']
 
     def spectral_scan_start(self):
