@@ -56,14 +56,20 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
         self.power = 1
 
         self.stopRssi = True
+        self.channel_change = False
 
         self._packetLossMonitor = PacketLossMonitor(self)
         self._spectralScanner = SpectralScanner(self)
         
         self.connectedDevices = {}
         
-        if "MAC_List" in kwargs:
-            for connectedMAC in kwargs["MAC_List"]:
+        if "myMAC" in kwargs:
+            self.myMAC = kwargs['myMAC']
+        else:
+            self.log.error("There are no MAC-Address for the AP!")
+        
+        if "clients" in kwargs:
+            for connectedMAC in kwargs["clients"]:
                 self.connectedDevices[connectedMAC] = {
                     "inactive time": 0,
                     "rx bytes":	            0,
@@ -86,7 +92,10 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
                     "last update":          datetime.now()}
         else:
             self.log.warning("There are no conneted devices!")
-
+        
+        if "neighbors" in kwargs:
+            self.neighbors = kwargs["neighbors"]
+        
     @modules.on_start()
     def _myFunc_1(self):
         self.log.info("This function is executed on agent start".format())
@@ -124,6 +133,10 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
         self.log.info(("Simple Module sets channel: {} " +
                        "on device: {} and iface: {}")
                       .format(channel, self.device, iface))
+        
+        if self.channel != channel:
+            self.channel_change = True
+        
         self.channel = channel
         if "channel_width" in kwargs:
             if kwargs["channel_width"] in [None|'HT20'|'HT40-'|'HT40+']:
@@ -233,27 +246,45 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
                 "timestamp":        (str(datetime.now()), None)}
         return res
 
-    def set_packet_counter(self, flows, ifaceName):
+    def get_address(self):
+        return self.myMAC
+    
+    def set_packet_counter(self, rrmPlan, ifaceName):
         self.log.info("Simple Module generates some traffic for clients on iface: %s" % str(ifaceName))
+        
+        sameChannelAPs = 0
+        
+        for device in rrmPlan:
+            if device["channel number"] == self.channel and device["mac address"] in self.neighbors:
+                sameChannelAPs += 1
+        
         for mac_addr in self.connectedDevices:
-            flowsOnChannel = 0
-            for flow in flows:
-                if flow["channel number"] == self.channel:
-                    flowsOnChannel += 1
             
             lastUpdate = self.connectedDevices[mac_addr]["last update"]
             timestamp = datetime.now()
             
             
             dif = timestamp - lastUpdate
+            
             difMs = (dif.total_seconds() * 1000 *  + 1 + dif.microseconds / 1000.0)
             
-            newRxPackets = random.uniform(0, (dif.total_seconds() / 2.0 + 1))
-            self.connectedDevices[mac_addr]["rx packets"] += int(newRxPackets)
-            self.connectedDevices[mac_addr]["rx bytes"] += int(newRxPackets * random.uniform(100, 200))
+            # change of channel takes 100ms
+            if self.channel_change:
+                difMs -= 200
             
-            newTxPackets = difMs / 1000.0 * 7.0 / flowsOnChannel #+ random.uniform(0, difMs / 10)
+            
+            bandwidth = 54 * 10e6 / 1000            # 54 MBit/sec in ms
+            bandwidth /= (sameChannelAPs +1)        # devide bandwidth by number of APs in range
+            bandwidth /= len(self.connectedDevices) # deice bandwidth by number of clients
+            bandwidth_packet = bandwidth / (60000 * 8)    # Bits per Packet (60000 < 65535), 0.11 p ms
+            
+            newRxPackets = 5                       # low upload
+            self.connectedDevices[mac_addr]["rx packets"] += int(newRxPackets)
+            self.connectedDevices[mac_addr]["rx bytes"] += int(newRxPackets * 60000)#* random.uniform(10000, 60000))
+            
+            newTxPackets = difMs * bandwidth_packet
             self.connectedDevices[mac_addr]["tx packets"] += int(newTxPackets)
-            self.connectedDevices[mac_addr]["tx bytes"] += int(newTxPackets * random.uniform(700000, 800000))
+            self.connectedDevices[mac_addr]["tx bytes"] += int(newTxPackets *  random.uniform(40000, 60000))
             
             self.connectedDevices[mac_addr]["last update"] = timestamp
+        self.channel_change = False
