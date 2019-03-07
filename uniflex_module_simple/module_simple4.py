@@ -96,6 +96,16 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
         if "neighbors" in kwargs:
             self.neighbors = kwargs["neighbors"]
         
+        self.channelSwitchingTime = 100
+        self.channelBandwith = 54e6
+        
+        if "simulation" in kwargs:
+            if "channelSwitchingTime" in kwargs['simulation']:
+                self.channelSwitchingTime = kwargs['simulation']['channelSwitchingTime']
+            if "channelThroughput" in kwargs['simulation']:
+                self.channelSwitchingTime = kwargs['simulation']['channelThroughput']
+    
+    
     @modules.on_start()
     def _myFunc_1(self):
         self.log.info("This function is executed on agent start".format())
@@ -259,7 +269,6 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
                 sameChannelAPs += 1
         
         for mac_addr in self.connectedDevices:
-            
             lastUpdate = self.connectedDevices[mac_addr]["last update"]
             timestamp = datetime.now()
             
@@ -270,10 +279,10 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
             
             # change of channel takes 100ms
             if self.channel_change:
-                difMs -= 200
+                difMs -= self.channelSwitchingTime
             
             
-            bandwidth = 54 * 10e6 / 1000            # 54 MBit/sec in ms
+            bandwidth = self.channelThroughput / 1000            # 54 MBit/sec in ms
             bandwidth /= (sameChannelAPs +1)        # devide bandwidth by number of APs in range
             bandwidth /= len(self.connectedDevices) # deice bandwidth by number of clients
             bandwidth_packet = bandwidth / (60000 * 8)    # Bits per Packet (60000 < 65535), 0.11 p ms
