@@ -98,12 +98,15 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
         
         self.channelSwitchingTime = 100
         self.channelBandwith = 54e6
+        self.txBytesRandom = 0
         
         if "simulation" in kwargs:
             if "channelSwitchingTime" in kwargs['simulation']:
                 self.channelSwitchingTime = kwargs['simulation']['channelSwitchingTime']
             if "channelThroughput" in kwargs['simulation']:
                 self.channelSwitchingTime = kwargs['simulation']['channelThroughput']
+            if "txBytesRandom" in kwargs['simulation']:
+                self.txBytesRandom = kwargs['simulation']['txBytesRandom']
     
     
     @modules.on_start()
@@ -293,7 +296,10 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
             
             newTxPackets = difMs * bandwidth_packet
             self.connectedDevices[mac_addr]["tx packets"] += int(newTxPackets)
-            self.connectedDevices[mac_addr]["tx bytes"] += int(newTxPackets *  random.uniform(40000, 60000))
+            if(self.txBytesRandom > 0 && < 1):
+                self.connectedDevices[mac_addr]["tx bytes"] += int(newTxPackets *  random.uniform(int(60000 * (1-self.txBytesRandom)), 60000))
+            else
+                self.connectedDevices[mac_addr]["tx bytes"] += int(newTxPackets *  60000)
             
             self.connectedDevices[mac_addr]["last update"] = timestamp
         self.channel_change = False
