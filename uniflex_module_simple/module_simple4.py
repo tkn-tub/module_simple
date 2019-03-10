@@ -104,7 +104,7 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
             if "channelSwitchingTime" in kwargs['simulation']:
                 self.channelSwitchingTime = kwargs['simulation']['channelSwitchingTime']
             if "channelThroughput" in kwargs['simulation']:
-                self.channelSwitchingTime = kwargs['simulation']['channelThroughput']
+                self.channelBandwith = kwargs['simulation']['channelThroughput']
             if "txBytesRandom" in kwargs['simulation']:
                 self.txBytesRandom = kwargs['simulation']['txBytesRandom']
     
@@ -277,28 +277,25 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
             
             
             dif = timestamp - lastUpdate
-            
             difMs = (dif.total_seconds() * 1000 *  + 1 + dif.microseconds / 1000.0)
             
             # change of channel takes 100ms
             if self.channel_change:
                 difMs -= self.channelSwitchingTime
             
-            
-            bandwidth = self.channelThroughput / 1000            # 54 MBit/sec in ms
+            bandwidth = self.channelBandwith / 1000            # 54 MBit/sec in ms
             bandwidth /= (sameChannelAPs +1)        # devide bandwidth by number of APs in range
             bandwidth /= len(self.connectedDevices) # deice bandwidth by number of clients
             bandwidth_packet = bandwidth / (60000 * 8)    # Bits per Packet (60000 < 65535), 0.11 p ms
-            
             newRxPackets = 5                       # low upload
             self.connectedDevices[mac_addr]["rx packets"] += int(newRxPackets)
             self.connectedDevices[mac_addr]["rx bytes"] += int(newRxPackets * 60000)#* random.uniform(10000, 60000))
             
             newTxPackets = difMs * bandwidth_packet
             self.connectedDevices[mac_addr]["tx packets"] += int(newTxPackets)
-            if(self.txBytesRandom > 0 && < 1):
+            if(self.txBytesRandom > 0 and self.txBytesRandom < 1):
                 self.connectedDevices[mac_addr]["tx bytes"] += int(newTxPackets *  random.uniform(int(60000 * (1-self.txBytesRandom)), 60000))
-            else
+            else:
                 self.connectedDevices[mac_addr]["tx bytes"] += int(newTxPackets *  60000)
             
             self.connectedDevices[mac_addr]["last update"] = timestamp
