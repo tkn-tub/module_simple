@@ -51,6 +51,7 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
     def __init__(self, **kwargs):
         super(SimpleModule4, self).__init__()
         self.log = logging.getLogger('SimpleModule')
+        self.log.info("This is SimpleModule4 with UUID: " + self.uuid)
         self.channel = 1
         self.chw = 'HT20'       # channel bandwidth
         self.power = 1
