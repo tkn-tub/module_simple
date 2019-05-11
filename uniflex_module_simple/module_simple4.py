@@ -14,7 +14,7 @@ from uniflex.core.common import UniFlexThread
 __author__ = "Piotr Gawlowicz, Sascha Rösler"
 __copyright__ = "Copyright (c) 2015, Technische Universität Berlin"
 __version__ = "0.1.0"
-__email__ = "{gawlowicz}@tkn.tu-berlin.de, s.roesler@campus.tu-berlin.de"
+__email__ = "{gawlowicz}@tkn.tu-berlin.de, {s.roesler}@campus.tu-berlin.de"
 
 
 class SpectralScanner(UniFlexThread):
@@ -99,13 +99,16 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
         
         self.channelSwitchingTime = 100
         self.channelBandwith = 54e6
+        self.channelBandwithList = []
         self.txBytesRandom = 0
         
         if "simulation" in kwargs:
             if "channelSwitchingTime" in kwargs['simulation']:
                 self.channelSwitchingTime = kwargs['simulation']['channelSwitchingTime']
+            if "channelThroughputDefault" in kwargs['simulation']:
+                self.channelBandwith = kwargs['simulation']['channelThroughputDefault']
             if "channelThroughput" in kwargs['simulation']:
-                self.channelBandwith = kwargs['simulation']['channelThroughput']
+                self.channelBandwithList = kwargs['simulation']['channelThroughput']
             if "txBytesRandom" in kwargs['simulation']:
                 self.txBytesRandom = kwargs['simulation']['txBytesRandom']
     
@@ -264,6 +267,13 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
         return self.myMAC
     
     def set_packet_counter(self, rrmPlan, ifaceName):
+        '''
+            Simulates information about associated STAs
+            Takes the current state of the network: Map AP-Channel
+            Simple model: Devide bandwidth by all neighbouring devices on the same channel +1
+            Number of bits is calculated by time since last call. Has internal state
+            Calculate number of packets by deviding the resulting throughput by 65535 Bits/packet
+        '''
         self.log.info("Simple Module generates some traffic for clients on iface: %s" % str(ifaceName))
         
         sameChannelAPs = 0
@@ -284,7 +294,12 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
             if self.channel_change:
                 difMs -= self.channelSwitchingTime
             
-            bandwidth = self.channelBandwith / 1000            # 54 MBit/sec in ms
+            #take channel specific bandwidth
+            if self.channelBandwidthList[self.channel] not None:
+                bandwidth = self.channelBandwidthList[self.channel] / 1000
+            else:
+                bandwidth = self.channelBandwith / 1000            # 54 MBit/sec in ms
+            
             bandwidth /= (sameChannelAPs +1)        # devide bandwidth by number of APs in range
             bandwidth /= len(self.connectedDevices) # deice bandwidth by number of clients
             bandwidth_packet = bandwidth / (60000 * 8)    # Bits per Packet (60000 < 65535), 0.11 p ms
