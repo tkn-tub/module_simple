@@ -63,6 +63,7 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
         self._spectralScanner = SpectralScanner(self)
         
         self.connectedDevices = {}
+        self.rrmPlan = []
         
         if "myMAC" in kwargs:
             self.myMAC = kwargs['myMAC']
@@ -99,7 +100,7 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
         
         self.channelSwitchingTime = 100
         self.channelBandwith = 54e6
-        self.channelBandwithList = []
+        self.channelBandwidthList = []
         self.txBytesRandom = 0
         
         if "simulation" in kwargs:
@@ -108,7 +109,7 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
             if "channelThroughputDefault" in kwargs['simulation']:
                 self.channelBandwith = kwargs['simulation']['channelThroughputDefault']
             if "channelThroughput" in kwargs['simulation']:
-                self.channelBandwithList = kwargs['simulation']['channelThroughput']
+                self.channelBandwidthList = kwargs['simulation']['channelThroughput']
             if "txBytesRandom" in kwargs['simulation']:
                 self.txBytesRandom = kwargs['simulation']['txBytesRandom']
     
@@ -266,7 +267,14 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
     def get_address(self):
         return self.myMAC
     
-    def set_packet_counter(self, rrmPlan, ifaceName):
+    def get_current_neighbours(self, ifaceName):
+        neighborslist = []
+        for device in self.rrmPlan:
+            if device["channel number"] == self.channel and device["mac address"] in self.neighbors:
+                neighborslist.append(device["mac address"])
+        return neighborslist
+    
+    def set_packet_counter(self, rrmPlan, ifaceName, steptime=None):
         '''
             Simulates information about associated STAs
             Takes the current state of the network: Map AP-Channel
@@ -276,11 +284,14 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
         '''
         self.log.info("Simple Module generates some traffic for clients on iface: %s" % str(ifaceName))
         
-        sameChannelAPs = 0
+        self.rrmPlan = rrmPlan
+        sameChannelAPs = len(self.get_current_neighbours(ifaceName))
         
+        '''
         for device in rrmPlan:
             if device["channel number"] == self.channel and device["mac address"] in self.neighbors:
                 sameChannelAPs += 1
+        '''
         
         for mac_addr in self.connectedDevices:
             lastUpdate = self.connectedDevices[mac_addr]["last update"]
@@ -290,13 +301,16 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
             dif = timestamp - lastUpdate
             difMs = (dif.total_seconds() * 1000 *  + 1 + dif.microseconds / 1000.0)
             
+            if steptime:
+                difMs = steptime * 1000
+            
             # change of channel takes 100ms
             if self.channel_change:
                 difMs -= self.channelSwitchingTime
             
             #take channel specific bandwidth
-            if self.channelBandwidthList[self.channel] not None:
-                bandwidth = self.channelBandwidthList[self.channel] / 1000
+            if len(self.channelBandwidthList) >= self.channel:
+                bandwidth = self.channelBandwidthList[self.channel-1] / 1000
             else:
                 bandwidth = self.channelBandwith / 1000            # 54 MBit/sec in ms
             
