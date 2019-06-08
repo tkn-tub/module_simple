@@ -65,6 +65,8 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
         self.connectedDevices = {}
         self.rrmPlan = []
         
+        self.clientconfig = None
+        
         if "myMAC" in kwargs:
             self.myMAC = kwargs['myMAC']
         else:
@@ -95,6 +97,8 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
         else:
             self.log.warning("There are no conneted devices!")
         
+        self.clientNumber = len(self.connectedDevices)
+        
         if "neighbors" in kwargs:
             self.neighbors = kwargs["neighbors"]
         
@@ -112,7 +116,15 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
                 self.channelBandwidthList = kwargs['simulation']['channelThroughput']
             if "txBytesRandom" in kwargs['simulation']:
                 self.txBytesRandom = kwargs['simulation']['txBytesRandom']
+            if "clientnum" in kwargs['simulation']:
+                self.clientNumber = kwargs['simulation']['clientnum']
+            if "clientconf" in kwargs['simulation']:
+                self.clientconf = kwargs['simulation']['clientconf']
     
+    if self.clientconf:
+        f = open(self.clientconf, "r")
+        self.clientNumber = int(f.readline())
+        f.close()
     
     @modules.on_start()
     def _myFunc_1(self):
@@ -239,6 +251,11 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
 
         res = {}
         
+        if self.clientconf:
+            f = open(self.clientconf, "r")
+            self.clientNumber = int(f.readline())
+            f.close()
+        
         for mac_addr in self.connectedDevices:
             values = self.connectedDevices[mac_addr]
             
@@ -262,7 +279,7 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
                 "MFP":              (values["MFP"], None),
                 "TDLS peer":        (values["TDLS peer"], None),
                 "timestamp":        (str(datetime.now()), None)}
-        return res
+        return res[:self.clientNumber]
 
     def get_address(self):
         return self.myMAC
@@ -292,6 +309,11 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
             if device["channel number"] == self.channel and device["mac address"] in self.neighbors:
                 sameChannelAPs += 1
         '''
+        
+        if self.clientconf:
+            f = open(self.clientconf, "r")
+            self.clientNumber = int(f.readline())
+            f.close()
         
         for mac_addr in self.connectedDevices:
             lastUpdate = self.connectedDevices[mac_addr]["last update"]
