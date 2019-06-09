@@ -119,12 +119,12 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
             if "clientnum" in kwargs['simulation']:
                 self.clientNumber = kwargs['simulation']['clientnum']
             if "clientconf" in kwargs['simulation']:
-                self.clientconf = kwargs['simulation']['clientconf']
-    
-    if self.clientconf:
-        f = open(self.clientconf, "r")
-        self.clientNumber = int(f.readline())
-        f.close()
+                self.clientconfig = kwargs['simulation']['clientconf']
+        
+        if self.clientconfig:
+            f = open(self.clientconfig, "r")
+            self.clientNumber = int(f.readline())
+            f.close()
     
     @modules.on_start()
     def _myFunc_1(self):
@@ -251,14 +251,17 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
 
         res = {}
         
-        if self.clientconf:
-            f = open(self.clientconf, "r")
+        if self.clientconfig:
+            f = open(self.clientconfig, "r")
             self.clientNumber = int(f.readline())
             f.close()
         
+        i = 0
         for mac_addr in self.connectedDevices:
             values = self.connectedDevices[mac_addr]
             
+            if i >= self.clientNumber:
+                break
             res[mac_addr] = {
                 "inactive time":    (str(values["inactive time"]), "ms"),
                 "rx bytes":         (str(values["rx bytes"]), None),
@@ -279,9 +282,10 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
                 "MFP":              (values["MFP"], None),
                 "TDLS peer":        (values["TDLS peer"], None),
                 "timestamp":        (str(datetime.now()), None)}
-        return res[:self.clientNumber]
+            i += 1
+        return res
 
-    def get_address(self):
+    def get_address(self, ifaceName=""):
         return self.myMAC
     
     def get_current_neighbours(self, ifaceName):
@@ -310,8 +314,8 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
                 sameChannelAPs += 1
         '''
         
-        if self.clientconf:
-            f = open(self.clientconf, "r")
+        if self.clientconfig:
+            f = open(self.clientconfig, "r")
             self.clientNumber = int(f.readline())
             f.close()
         
