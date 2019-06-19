@@ -98,6 +98,7 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
             self.log.warning("There are no conneted devices!")
         
         self.clientNumber = len(self.connectedDevices)
+        self.scenario = 0
         
         if "neighbors" in kwargs:
             self.neighbors = kwargs["neighbors"]
@@ -106,6 +107,8 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
         self.channelBandwith = 54e6
         self.channelBandwidthList = []
         self.txBytesRandom = 0
+        self.mode = ""
+        self.numsClients = [0]
         
         if "simulation" in kwargs:
             if "channelSwitchingTime" in kwargs['simulation']:
@@ -120,6 +123,10 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
                 self.clientNumber = kwargs['simulation']['clientnum']
             if "clientconf" in kwargs['simulation']:
                 self.clientconfig = kwargs['simulation']['clientconf']
+            if "mode" in kwargs['simulation']:
+                self.mode = kwargs['simulation']['mode']
+            if "numsClients" in kwargs['simulation']:
+                self.numsClients = kwargs['simulation']['numsClients']
         
         if self.clientconfig:
             f = open(self.clientconfig, "r")
@@ -251,10 +258,13 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
 
         res = {}
         
-        if self.clientconfig:
+        if self.clientconfig and self.mode == "working":
             f = open(self.clientconfig, "r")
             self.clientNumber = int(f.readline())
             f.close()
+        
+        if self.mode == "training" and len(self.numsClients) > self.scenario:
+            self.clientNumber = self.numsClients[scenario]
         
         i = 0
         for mac_addr in self.connectedDevices:
@@ -285,7 +295,7 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
             i += 1
         return res
 
-    def get_address(self, ifaceName=""):
+    def getHwAddr(self, ifaceName=""):
         return self.myMAC
     
     def get_current_neighbours(self, ifaceName):
@@ -295,7 +305,7 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
                 neighborslist.append(device["mac address"])
         return neighborslist
     
-    def set_packet_counter(self, rrmPlan, ifaceName, steptime=None):
+    def set_packet_counter(self, rrmPlan, ifaceName, steptime=None, scenario=0):
         '''
             Simulates information about associated STAs
             Takes the current state of the network: Map AP-Channel
@@ -314,10 +324,16 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
                 sameChannelAPs += 1
         '''
         
-        if self.clientconfig:
+        self.scenario = scenario
+        
+        if self.clientconfig and self.mode == "working":
             f = open(self.clientconfig, "r")
             self.clientNumber = int(f.readline())
             f.close()
+        
+        if self.mode == "training" and len(self.numsClients) > scenario:
+            self.log.info("Simple Module switches to scenario: %s" % str(scenario))
+            self.clientNumber = self.numsClients[scenario]
         
         for mac_addr in self.connectedDevices:
             lastUpdate = self.connectedDevices[mac_addr]["last update"]
