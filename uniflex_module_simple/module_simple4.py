@@ -1,6 +1,9 @@
 import time
 import logging
 import random
+import numpy as np
+import pickle
+import json
 
 from datetime import datetime
 
@@ -62,9 +65,6 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
         self._packetLossMonitor = PacketLossMonitor(self)
         self._spectralScanner = SpectralScanner(self)
         
-        self.connectedDevices = {}
-        self.rrmPlan = []
-        
         self.clientconfig = None
         
         if "myMAC" in kwargs:
@@ -72,32 +72,42 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
         else:
             self.log.error("There are no MAC-Address for the AP!")
         
+        self.numsClients = [0]
+        if "simulation" in kwargs:
+            if "numsClients" in kwargs['simulation']:
+                self.numsClients = kwargs['simulation']['numsClients']
+        
+        self.connectedDevices = []
+        for i in range(len(self.numsClients)):
+            self.connectedDevices.append({})
+        
         if "clients" in kwargs:
             for connectedMAC in kwargs["clients"]:
-                self.connectedDevices[connectedMAC] = {
-                    "inactive time": 0,
-                    "rx bytes":	            0,
-                    "rx packets":           0,
-                    "tx bytes":             0,
-                    "tx packets":           0,
-                    "tx retries":           0,
-                    "tx failed":            0,
-                    "signal":               -60,
-                    "signal avg":           -59,
-                    "tx bitrate":           144.4,
-                    "rx bitrate":           144.4,
-                    "expected throughput":  46.875,
-                    "authorized":           "yes",
-                    "authenticated":        "yes",
-                    "preamble":             "long",
-                    "WMM/WME":              "yes",
-                    "MFP":                  "no",
-                    "TDLS peer":            "no",
-                    "last update":          datetime.now()}
+                for i in range(len(self.numsClients)):
+                    self.connectedDevices[i][connectedMAC] = {
+                        "inactive time":        0,
+                        "rx bytes":	            0,
+                        "rx packets":           0,
+                        "tx bytes":             0,
+                        "tx packets":           0,
+                        "tx retries":           0,
+                        "tx failed":            0,
+                        "signal":               -60,
+                        "signal avg":           -59,
+                        "tx bitrate":           144.4,
+                        "rx bitrate":           144.4,
+                        "expected throughput":  46.875,
+                        "authorized":           "yes",
+                        "authenticated":        "yes",
+                        "preamble":             "long",
+                        "WMM/WME":              "yes",
+                        "MFP":                  "no",
+                        "TDLS peer":            "no",
+                        "last update":          datetime.now()}
         else:
             self.log.warning("There are no conneted devices!")
         
-        self.clientNumber = len(self.connectedDevices)
+        self.clientNumber = len(self.connectedDevices[0])
         self.scenario = 0
         
         if "neighbors" in kwargs:
@@ -108,7 +118,10 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
         self.channelBandwidthList = []
         self.txBytesRandom = 0
         self.mode = ""
-        self.numsClients = [0]
+        
+        self.generatorMaxNumClients = 0
+        self.generatorScenariosPerAPSetting = 0
+        self.clientPrefix = "cc:cc:cc:cc:cc:"
         
         if "simulation" in kwargs:
             if "channelSwitchingTime" in kwargs['simulation']:
@@ -125,8 +138,72 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
                 self.clientconfig = kwargs['simulation']['clientconf']
             if "mode" in kwargs['simulation']:
                 self.mode = kwargs['simulation']['mode']
-            if "numsClients" in kwargs['simulation']:
-                self.numsClients = kwargs['simulation']['numsClients']
+            if "scenariosPerAPSetting" in kwargs['simulation']:
+                self.generatorScenariosPerAPSetting = kwargs['simulation']['scenariosPerAPSetting']
+            if "maxNumClients" in kwargs['simulation']:
+                self.generatorMaxNumClients = kwargs['simulation']['maxNumClients']
+            if "clientPrefix" in kwargs['simulation']:
+                self.clientPrefix = kwargs['simulation']['clientPrefix']
+        
+        if self.mode == 'generator':
+            #generate client MACs
+            myMACs = []
+            for i in range(self.generatorMaxNumClients):
+                myMACs.append(self.clientPrefix + hex(i)[2:].zfill(2))
+            
+            #renew connectedDevices
+            self.connectedDevices = []
+            for i in range(self.generatorScenariosPerAPSetting * len(self.neighbors)):
+                self.connectedDevices.append({})
+            
+            for connectedMAC in myMACs:
+                # for each scenario, generate the client list
+                for i in range(self.generatorScenariosPerAPSetting * len(self.neighbors)):
+                    self.connectedDevices[i][connectedMAC] = {
+                        "inactive time":        0,
+                        "rx bytes":	            0,
+                        "rx packets":           0,
+                        "tx bytes":             0,
+                        "tx packets":           0,
+                        "tx retries":           0,
+                        "tx failed":            0,
+                        "signal":               -60,
+                        "signal avg":           -59,
+                        "tx bitrate":           144.4,
+                        "rx bitrate":           144.4,
+                        "expected throughput":  46.875,
+                        "authorized":           "yes",
+                        "authenticated":        "yes",
+                        "preamble":             "long",
+                        "WMM/WME":              "yes",
+                        "MFP":                  "no",
+                        "TDLS peer":            "no",
+                        "last update":          datetime.now()}
+            
+            #generate numsClients
+            if "scenarioBackup" in kwargs['simulation']:
+                try:
+                    with open(kwargs['simulation']["scenarioBackup"], 'r') as f:  # Python 3: open(..., 'wb')
+                        self.numsClients = np.array(json.loads(f.read()))
+                        print(self.numsClients)
+                        self.log.info("Load scenario of last run")
+                except ValueError as e:
+                    self.numsClients = np.random.randint(self.generatorMaxNumClients, size=self.generatorScenariosPerAPSetting * len(self.neighbors))
+                    self.log.info("File format is wrong" + str(e))
+                except IOError as e:
+                    self.log.info("File not found. Skip loading" + str(e))
+                    self.numsClients = np.random.randint(self.generatorMaxNumClients, size=self.generatorScenariosPerAPSetting* len(self.neighbors))
+                
+                with open(kwargs['simulation']["scenarioBackup"], 'w') as f:  # Python 3: open(..., 'wb')
+                    f.write(json.dumps(self.numsClients.tolist()))
+            else:
+                self.numsClients = np.random.randint(self.generatorMaxNumClients, size=self.generatorScenariosPerAPSetting * len(self.neighbors))
+            
+            #generate neighbors
+            temp = []
+            for i in range(self.generatorScenariosPerAPSetting):
+                temp.extend(self.neighbors)
+            self.neighbors = temp
         
         if self.clientconfig:
             f = open(self.clientconfig, "r")
@@ -263,12 +340,12 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
             self.clientNumber = int(f.readline())
             f.close()
         
-        if self.mode == "training" and len(self.numsClients) > self.scenario:
-            self.clientNumber = self.numsClients[scenario]
+        if (self.mode == "training" or self.mode == 'generator') and len(self.numsClients) > self.scenario:
+            self.clientNumber = self.numsClients[self.scenario]
         
         i = 0
-        for mac_addr in self.connectedDevices:
-            values = self.connectedDevices[mac_addr]
+        for mac_addr in self.connectedDevices[self.scenario]:
+            values = self.connectedDevices[self.scenario][mac_addr]
             
             if i >= self.clientNumber:
                 break
@@ -298,12 +375,15 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
     def getHwAddr(self, ifaceName=""):
         return self.myMAC
     
-    def get_current_neighbours(self, ifaceName):
+    def get_current_neighbours(self, ifaceName, rrmPlan):
         neighborslist = []
-        for device in self.rrmPlan:
-            if device["channel number"] == self.channel and device["mac address"] in self.neighbors:
+        for device in rrmPlan:
+            if device["channel number"] == self.channel and device["mac address"] in self.neighbors[self.scenario]:
                 neighborslist.append(device["mac address"])
         return neighborslist
+    
+    def get_neighbours(self, ifaceName):
+        return self.neighbors[self.scenario]
     
     def set_packet_counter(self, rrmPlan, ifaceName, steptime=None, scenario=0):
         '''
@@ -314,9 +394,6 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
             Calculate number of packets by deviding the resulting throughput by 65535 Bits/packet
         '''
         self.log.info("Simple Module generates some traffic for clients on iface: %s" % str(ifaceName))
-        
-        self.rrmPlan = rrmPlan
-        sameChannelAPs = len(self.get_current_neighbours(ifaceName))
         
         '''
         for device in rrmPlan:
@@ -331,12 +408,23 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
             self.clientNumber = int(f.readline())
             f.close()
         
-        if self.mode == "training" and len(self.numsClients) > scenario:
+        self.log.info("Simple Module rrm plan: %s" % str(rrmPlan))
+        self.log.info("Simple Module scenario: %s" % str(scenario))
+        self.log.info("Simple Module mode: %s" % str(self.mode))
+        self.log.info("Simple Module numsClients: %s" % str(self.numsClients))
+        
+        if (self.mode == "training" or self.mode == "generator") and len(self.numsClients) > scenario:
             self.log.info("Simple Module switches to scenario: %s" % str(scenario))
             self.clientNumber = self.numsClients[scenario]
         
-        for mac_addr in self.connectedDevices:
-            lastUpdate = self.connectedDevices[mac_addr]["last update"]
+        if self.clientNumber <= 0:
+            return
+        
+        sameChannelAPs = len(self.get_current_neighbours(ifaceName, rrmPlan))
+        
+        
+        for mac_addr in self.connectedDevices[self.scenario]:
+            lastUpdate = self.connectedDevices[self.scenario][mac_addr]["last update"]
             timestamp = datetime.now()
             
             
@@ -357,18 +445,23 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
                 bandwidth = self.channelBandwith / 1000            # 54 MBit/sec in ms
             
             bandwidth /= (sameChannelAPs +1)        # devide bandwidth by number of APs in range
-            bandwidth /= len(self.connectedDevices) # deice bandwidth by number of clients
+            bandwidth /= self.clientNumber          # devide bandwidth by number of clients
             bandwidth_packet = bandwidth / (60000 * 8)    # Bits per Packet (60000 < 65535), 0.11 p ms
             newRxPackets = 5                       # low upload
-            self.connectedDevices[mac_addr]["rx packets"] += int(newRxPackets)
-            self.connectedDevices[mac_addr]["rx bytes"] += int(newRxPackets * 60000)#* random.uniform(10000, 60000))
+            self.connectedDevices[self.scenario][mac_addr]["rx packets"] += int(newRxPackets)
+            self.connectedDevices[self.scenario][mac_addr]["rx bytes"] += int(newRxPackets * 60000)#* random.uniform(10000, 60000))
+            #self.log.info("Simple Module simulationtime %s" % str(difMs))
+            #self.log.info("Simple Module same aps on channel %s" % str(sameChannelAPs))
+            #self.log.info("Simple Module current clients %s" % str(self.clientNumber))
             
             newTxPackets = difMs * bandwidth_packet
-            self.connectedDevices[mac_addr]["tx packets"] += int(newTxPackets)
+            self.connectedDevices[self.scenario][mac_addr]["tx packets"] += int(newTxPackets)
             if(self.txBytesRandom > 0 and self.txBytesRandom < 1):
-                self.connectedDevices[mac_addr]["tx bytes"] += int(newTxPackets *  random.uniform(int(60000 * (1-self.txBytesRandom)), 60000))
+                self.connectedDevices[self.scenario][mac_addr]["tx bytes"] += int(newTxPackets *  random.uniform(int(60000 * (1-self.txBytesRandom)), 60000))
             else:
-                self.connectedDevices[mac_addr]["tx bytes"] += int(newTxPackets *  60000)
+                self.connectedDevices[self.scenario][mac_addr]["tx bytes"] += int(newTxPackets *  60000)
             
-            self.connectedDevices[mac_addr]["last update"] = timestamp
+            #self.log.info("Simple Module adds %s Bytes" % str(int(newTxPackets *  60000)))
+            
+            self.connectedDevices[self.scenario][mac_addr]["last update"] = timestamp
         self.channel_change = False
