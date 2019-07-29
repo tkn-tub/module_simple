@@ -205,7 +205,7 @@ class SimpleModule4(modules.DeviceModule, WiFiNetDevice):
                 temp.extend(self.neighbors)
             self.neighbors = temp
         
-        if self.clientconfig:
+        if self.clientconfig and self.mode == 'working':
             f = open(self.clientconfig, "r")
             self.clientNumber = int(f.readline())
             f.close()
